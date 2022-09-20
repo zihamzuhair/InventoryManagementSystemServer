@@ -45,7 +45,7 @@ public class InventoryManagementServer {
 
     public InventoryManagementServer(String host, int port) throws InterruptedException, IOException, KeeperException {
         this.serverPort = port;
-        leaderLock = new DistributedLock("BankServerTestCluster", buildServerData(host, port));
+        leaderLock = new DistributedLock("InventoryManagementServer", buildServerData(host, port));
 
         setProductQuantityService = new SetProductQuantityServiceImpl(this);
         checkProductQuantityService = new CheckProductQuantityServiceImpl(this);
@@ -66,7 +66,7 @@ public class InventoryManagementServer {
                 .addService(setOrderService)
                 .build();
         server.start();
-        System.out.println("BankServer Started and ready to accept requests on port " + serverPort);
+        System.out.println("Inventory Management Server Started and ready to accept requests on port " + serverPort);
 
         tryToBeLeader();
         server.awaitTermination();
@@ -151,7 +151,6 @@ public class InventoryManagementServer {
                     Thread.sleep(10000);
                     leader = leaderLock.tryAcquireLock();
                 }
-                System.out.println("I got the leader lock. Now acting as primary");
                 currentLeaderData = null;
                 beTheLeader();
             } catch (Exception e) {
