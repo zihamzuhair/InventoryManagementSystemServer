@@ -42,10 +42,10 @@ public class SetProductQuantityServiceImpl extends SetProductQuantityServiceGrpc
                 updateSecondaryServers(productsId, quantity);
                 System.out.println("going to perform");
                 if (quantity > 0) {
-                    ((DistributedTxCoordinator) server.getTransaction()).perform();
+                    ((DistributedTxCoordinator) server.getProductTransaction()).perform();
                     transactionStatus = true;
                 } else {
-                    ((DistributedTxCoordinator) server.getTransaction()).sendGlobalAbort();
+                    ((DistributedTxCoordinator) server.getProductTransaction()).sendGlobalAbort();
                 }
             } catch (Exception e) {
                 System.out.println("Error while updating the account balance" + e.getMessage());
@@ -57,10 +57,10 @@ public class SetProductQuantityServiceImpl extends SetProductQuantityServiceGrpc
                 System.out.println("Updating account balance on secondary, on Primary 's command");
                 startDistributedTx(productsId, quantity);
                 if (quantity != 0.0d) {
-                    ((DistributedTxParticipant) server.getTransaction()).voteCommit();
+                    ((DistributedTxParticipant) server.getProductTransaction()).voteCommit();
                     transactionStatus = true;
                 } else {
-                    ((DistributedTxParticipant) server.getTransaction()).voteAbort();
+                    ((DistributedTxParticipant) server.getProductTransaction()).voteAbort();
                 }
             } else {
                 SetProductQuantityResponse response = callPrimary(productsId, quantity);
@@ -79,7 +79,7 @@ public class SetProductQuantityServiceImpl extends SetProductQuantityServiceGrpc
 
     private void startDistributedTx(String productsId, double quantity) {
         try {
-            server.getTransaction().start(productsId, String.valueOf(UUID.randomUUID()));
+            server.getProductTransaction().start(productsId, String.valueOf(UUID.randomUUID()));
             tempDataHolder = new Pair<>(productsId, quantity);
         } catch (IOException e) {
             e.printStackTrace();

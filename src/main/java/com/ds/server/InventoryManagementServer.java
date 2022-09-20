@@ -1,7 +1,7 @@
 package com.ds.server;
 
 import com.ds.server.models.Order;
-import com.ds.server.models.Product;
+import com.ds.server.order.CheckOrderServiceImpl;
 import com.ds.server.order.SetOrderServiceImpl;
 import com.ds.server.product.CheckProductQuantityServiceImpl;
 import com.ds.server.product.SetProductQuantityServiceImpl;
@@ -32,10 +32,13 @@ public class InventoryManagementServer {
 
 
 
-    private DistributedTx transaction;
+    private DistributedTx productTransaction;
+
+    private DistributedTx orderTransaction;
     private SetProductQuantityServiceImpl setProductQuantityService;
     private CheckProductQuantityServiceImpl checkProductQuantityService;
     private SetOrderServiceImpl setOrderService;
+    private CheckOrderServiceImpl checkOrderService;
 
     public static String buildServerData(String IP, int port) {
         StringBuilder builder = new StringBuilder();
@@ -50,7 +53,9 @@ public class InventoryManagementServer {
         setProductQuantityService = new SetProductQuantityServiceImpl(this);
         checkProductQuantityService = new CheckProductQuantityServiceImpl(this);
         setOrderService = new SetOrderServiceImpl(this);
-        transaction = new DistributedTxParticipant(setProductQuantityService);
+        checkOrderService = new CheckOrderServiceImpl(this);
+        productTransaction = new DistributedTxParticipant(setProductQuantityService);
+        orderTransaction = new DistributedTxParticipant(setOrderService);
     }
 
     private void tryToBeLeader() throws KeeperException, InterruptedException {
@@ -63,6 +68,7 @@ public class InventoryManagementServer {
                 .forPort(serverPort)
                 .addService(checkProductQuantityService)
                 .addService(setProductQuantityService)
+                .addService(checkOrderService)
                 .addService(setOrderService)
                 .build();
         server.start();
@@ -72,9 +78,14 @@ public class InventoryManagementServer {
         server.awaitTermination();
     }
 
-    public DistributedTx getTransaction() {
-        return transaction;
+    public DistributedTx getProductTransaction() {
+        return productTransaction;
     }
+
+    public DistributedTx getOrderTransaction() {
+        return orderTransaction;
+    }
+
 
     public boolean isLeader() {
         return isLeader.get();
@@ -129,7 +140,8 @@ public class InventoryManagementServer {
     private void beTheLeader() {
         System.out.println("I got the leader lock. Now acting as primary");
         isLeader.set(true);
-        transaction = new DistributedTxCoordinator(setProductQuantityService);
+        productTransaction = new DistributedTxCoordinator(setProductQuantityService);
+        orderTransaction = new DistributedTxCoordinator(setOrderService);
     }
 
     class LeaderCampaignThread implements Runnable {

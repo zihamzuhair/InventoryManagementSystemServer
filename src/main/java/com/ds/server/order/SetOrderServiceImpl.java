@@ -44,10 +44,10 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
                 updateSecondaryServers(orderId, productsId, quantity);
                 System.out.println("going to perform");
                 if (quantity > 0) {
-                    ((DistributedTxCoordinator) server.getTransaction()).perform();
+                    ((DistributedTxCoordinator) server.getOrderTransaction()).perform();
                     transactionStatus = true;
                 } else {
-                    ((DistributedTxCoordinator) server.getTransaction()).sendGlobalAbort();
+                    ((DistributedTxCoordinator) server.getOrderTransaction()).sendGlobalAbort();
                 }
             } catch (Exception e) {
                 System.out.println("Error while updating the account balance" + e.getMessage());
@@ -59,10 +59,10 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
                 System.out.println("Updating account balance on secondary, on Primary 's command");
                 startDistributedTx(orderId, productsId, quantity);
                 if (quantity != 0.0d) {
-                    ((DistributedTxParticipant) server.getTransaction()).voteCommit();
+                    ((DistributedTxParticipant) server.getOrderTransaction()).voteCommit();
                     transactionStatus = true;
                 } else {
-                    ((DistributedTxParticipant) server.getTransaction()).voteAbort();
+                    ((DistributedTxParticipant) server.getOrderTransaction()).voteAbort();
                 }
             } else {
                 SetOrderResponse response = callPrimary(orderId, productsId, quantity);
@@ -81,7 +81,7 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
 
     private void startDistributedTx(String orderId, String productsId, double quantity) {
         try {
-            server.getTransaction().start(productsId, String.valueOf(UUID.randomUUID()));
+            server.getOrderTransaction().start(productsId, String.valueOf(UUID.randomUUID()));
             newOrder = new Order();
             newOrder.setOrderId(orderId);
             newOrder.setProduct(productsId);
