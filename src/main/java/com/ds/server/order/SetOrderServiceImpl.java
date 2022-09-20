@@ -45,6 +45,7 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
                 System.out.println("going to perform");
                 if (quantity > 0) {
                     ((DistributedTxCoordinator) server.getTransaction()).perform();
+                    transactionStatus = true;
                 } else {
                     ((DistributedTxCoordinator) server.getTransaction()).sendGlobalAbort();
                 }
@@ -59,6 +60,7 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
                 startDistributedTx(orderId, productsId, quantity);
                 if (quantity != 0.0d) {
                     ((DistributedTxParticipant) server.getTransaction()).voteCommit();
+                    transactionStatus = true;
                 } else {
                     ((DistributedTxParticipant) server.getTransaction()).voteAbort();
                 }
