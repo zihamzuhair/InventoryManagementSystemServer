@@ -1,6 +1,7 @@
 package com.ds.server.order;
 
 import com.ds.server.InventoryManagementServer;
+import com.ds.server.models.Order;
 import ds.inventoryManagementSystem.grpc.generated.CheckOrderResponse;
 import ds.inventoryManagementSystem.grpc.generated.CheckOrderServiceGrpc;
 
@@ -18,20 +19,20 @@ public class CheckOrderServiceImpl extends CheckOrderServiceGrpc.CheckOrderServi
 
         String orderId = request.getOrderId() ;
         System.out.println("Request received..");
-        double qty = getOrderProduct(orderId);
+        Order order = getOrderProduct(orderId);
 
 
         CheckOrderResponse response = CheckOrderResponse
                 .newBuilder()
-                .setProductName("apple")
-                .setProductQuantity(qty)
+                .setProductName(order.getProduct())
+                .setProductQuantity(order.getQuantity())
                 .build();
-       System.out.println("Responding, balance for account " + orderId + " is " + qty);
+        System.out.println("Responding, quantity: "+order.getQuantity()+" and product: "+order.getProduct()+" for Order no : " + orderId);
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
 
-    private double getOrderProduct(String orderId) {
+    private Order getOrderProduct(String orderId) {
         return server.getOrderProduct(orderId);
     }
 

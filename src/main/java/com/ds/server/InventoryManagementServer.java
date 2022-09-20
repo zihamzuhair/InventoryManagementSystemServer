@@ -1,6 +1,7 @@
 package com.ds.server;
 
 import com.ds.server.models.Order;
+import com.ds.server.models.OrderResponse;
 import com.ds.server.order.CheckOrderServiceImpl;
 import com.ds.server.order.SetOrderServiceImpl;
 import com.ds.server.product.CheckProductQuantityServiceImpl;
@@ -9,7 +10,6 @@ import com.ds.sycnhronization.DistributedLock;
 import com.ds.sycnhronization.DistributedTx;
 import com.ds.sycnhronization.DistributedTxCoordinator;
 import com.ds.sycnhronization.DistributedTxParticipant;
-
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.apache.zookeeper.KeeperException;
@@ -22,16 +22,13 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class InventoryManagementServer {
+    ArrayList<Order> ordersList = new ArrayList<>();
     private DistributedLock leaderLock;
     private AtomicBoolean isLeader = new AtomicBoolean(false);
     private byte[] leaderData;
     private int serverPort;
     private Map<String, Double> products = new HashMap();
-    private Map<String, Double> orders = new HashMap();
-    ArrayList<Order> ordersList = new ArrayList<>();
-
-
-
+    private Map<String, Order> orders = new HashMap();
     private DistributedTx productTransaction;
 
     private DistributedTx orderTransaction;
@@ -39,12 +36,6 @@ public class InventoryManagementServer {
     private CheckProductQuantityServiceImpl checkProductQuantityService;
     private SetOrderServiceImpl setOrderService;
     private CheckOrderServiceImpl checkOrderService;
-
-    public static String buildServerData(String IP, int port) {
-        StringBuilder builder = new StringBuilder();
-        builder.append(IP).append(":").append(port);
-        return builder.toString();
-    }
 
     public InventoryManagementServer(String host, int port) throws InterruptedException, IOException, KeeperException {
         this.serverPort = port;
@@ -56,6 +47,25 @@ public class InventoryManagementServer {
         checkOrderService = new CheckOrderServiceImpl(this);
         productTransaction = new DistributedTxParticipant(setProductQuantityService);
         orderTransaction = new DistributedTxParticipant(setOrderService);
+    }
+
+    public static String buildServerData(String IP, int port) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(IP).append(":").append(port);
+        return builder.toString();
+    }
+
+    public static void main(String[] args) throws Exception {
+        DistributedTx.setZooKeeperURL("localhost:2181");
+        if (args.length != 1) {
+            System.out.println("Usage executable-name <port>");
+        }
+
+        int serverPort = Integer.parseInt(args[0]);
+        DistributedLock.setZooKeeperURL("localhost:2181");
+
+        InventoryManagementServer server = new InventoryManagementServer("localhost", serverPort);
+        server.startServer();
     }
 
     private void tryToBeLeader() throws KeeperException, InterruptedException {
@@ -86,27 +96,26 @@ public class InventoryManagementServer {
         return orderTransaction;
     }
 
-
     public boolean isLeader() {
         return isLeader.get();
-    }
-
-    private synchronized void setCurrentLeaderData(byte[] leaderData) {
-        this.leaderData = leaderData;
     }
 
     public synchronized String[] getCurrentLeaderData() {
         return new String(leaderData).split(":");
     }
 
+    private synchronized void setCurrentLeaderData(byte[] leaderData) {
+        this.leaderData = leaderData;
+    }
+
     public void setProductQuantity(String productId, double newQuantity) {
-        if(products.containsKey(productId)){
+        if (products.containsKey(productId)) {
             // return the quantity of key product
             double quantity = products.get(productId);
             // update the quantity
             quantity = quantity + newQuantity;
             products.put(productId, quantity);
-        }else{
+        } else {
             products.put(productId, newQuantity);
         }
     }
@@ -116,14 +125,34 @@ public class InventoryManagementServer {
         return (quantity != null) ? quantity : 0.0;
     }
 
-    public void setOrders(Order orders) {
-        ordersList.add(orders);
-        System.out.println(ordersList.toString());
+    public OrderResponse setOrders(Order order) {
+        OrderResponse response = new OrderResponse();
+
+        String orderedProduct = order.getProduct();
+        double orderedQuantity = order.getQuantity();
+        double quantity = products.get(orderedProduct);
+
+        response.setId(order.getOrderId());
+
+        if (quantity >= orderedQuantity) {
+            response.setStatus(true);
+            double qty = products.get(order.getProduct());
+            qty -= orderedQuantity;
+            response.setAvailableQuantity(qty);
+            products.put(orderedProduct, qty);
+            ordersList.add(order);
+            orders.put(order.getOrderId(), order);
+        } else {
+            response.setAvailableQuantity(quantity);
+            response.setStatus(false);
+        }
+
+        return response;
     }
 
-    public double getOrderProduct(String orderId) {
-        Double quantity = orders.get(orderId);
-        return (quantity != null) ? quantity : 0.0;
+    public Order getOrderProduct(String orderId) {
+        Order order = orders.get(orderId);
+        return (order != null) ? order : null;
     }
 
     public List<String[]> getOthersData() throws KeeperException, InterruptedException {
@@ -168,18 +197,5 @@ public class InventoryManagementServer {
             } catch (Exception e) {
             }
         }
-    }
-
-    public static void main(String[] args) throws Exception {
-        DistributedTx.setZooKeeperURL("localhost:2181");
-        if (args.length != 1) {
-            System.out.println("Usage executable-name <port>");
-        }
-
-        int serverPort = Integer.parseInt(args[0]);
-        DistributedLock.setZooKeeperURL("localhost:2181");
-
-        InventoryManagementServer server = new InventoryManagementServer("localhost", serverPort);
-        server.startServer();
     }
 }
