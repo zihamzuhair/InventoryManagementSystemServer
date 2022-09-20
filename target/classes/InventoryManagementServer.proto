@@ -1,0 +1,68 @@
+syntax = "proto3";
+option java_multiple_files = true;
+package ds.inventoryManagementSystem.grpc.generated;
+
+
+
+//product quantity
+
+//check
+message CheckProductQuantityRequest {
+    string productId = 1;
+}
+
+message CheckProductQuantityResponse {
+    double productQuantity = 1;
+}
+
+service CheckProductQuantityService {
+    rpc checkProductQuantity(CheckProductQuantityRequest) returns (CheckProductQuantityResponse);
+}
+
+//set
+message SetProductQuantityRequest {
+    string productId = 1;
+    double Quantity = 2;
+    bool isSentByPrimary = 3;
+}
+
+message SetProductQuantityResponse {
+    bool status = 1;
+}
+
+service SetProductQuantityService {
+    rpc setProductQuantity(SetProductQuantityRequest) returns (SetProductQuantityResponse);
+}
+
+
+//order
+
+//check
+message CheckOrderRequest {
+    string orderId = 1;
+}
+
+message CheckOrderResponse {
+    string productName = 1;
+    double productQuantity = 2;
+}
+
+service CheckOrderService {
+    rpc checkOrders(CheckOrderRequest) returns (CheckOrderResponse);
+}
+
+//set
+message SetOrderRequest {
+    string orderId = 1;
+    string productName = 2;
+    double productQuantity = 3;
+    bool isSentByPrimary = 4;
+}
+
+message SetOrderResponse {
+    bool status = 1;
+}
+
+service SetOrderService {
+    rpc setOrders(SetOrderRequest) returns (SetOrderResponse);
+}
