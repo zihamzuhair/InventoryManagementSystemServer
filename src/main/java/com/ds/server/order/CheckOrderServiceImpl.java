@@ -1,11 +1,8 @@
 package com.ds.server.order;
 
 import com.ds.server.InventoryManagementServer;
-import com.ds.server.models.Product;
 import ds.inventoryManagementSystem.grpc.generated.CheckOrderResponse;
 import ds.inventoryManagementSystem.grpc.generated.CheckOrderServiceGrpc;
-import ds.inventoryManagementSystem.grpc.generated.CheckProductQuantityResponse;
-import ds.inventoryManagementSystem.grpc.generated.CheckProductQuantityServiceGrpc;
 
 public class CheckOrderServiceImpl extends CheckOrderServiceGrpc.CheckOrderServiceImplBase {
 
@@ -37,9 +34,5 @@ public class CheckOrderServiceImpl extends CheckOrderServiceGrpc.CheckOrderServi
     private double getOrderProduct(String orderId) {
         return server.getOrderProduct(orderId);
     }
-
-//    private Product getOrderProduct(String orderId) {
-//        return server.getOrderProduct(orderId);
-//    }
 
 }

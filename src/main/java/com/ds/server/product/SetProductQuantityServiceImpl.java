@@ -85,17 +85,11 @@ public class SetProductQuantityServiceImpl extends SetProductQuantityServiceGrpc
     }
 
     private void updateBalance() {
-        System.out.println("-------------");
-        System.out.println(tempDataHolder.getKey());
-        System.out.println(tempDataHolder.getValue());
-        System.out.println("-------------");
         if (tempDataHolder != null) {
             String productsId = tempDataHolder.getKey();
             double quantity = tempDataHolder.getValue();
 
-            System.out.println("set ProductQuantity called");
             server.setProductQuantity(productsId, quantity);
-            System.out.println("set ProductQuantity finished");
 
             System.out.println("product " + productsId + " updated to quantity " + quantity + " committed");
             tempDataHolder = null;

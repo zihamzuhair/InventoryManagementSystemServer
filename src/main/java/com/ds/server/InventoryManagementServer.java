@@ -30,7 +30,6 @@ public class InventoryManagementServer {
     private Map<String, Double> orders = new HashMap();
     ArrayList<Order> ordersList = new ArrayList<>();
 
-    //private Map<String, Product> orders = new HashMap();
 
 
     private DistributedTx transaction;
@@ -106,25 +105,10 @@ public class InventoryManagementServer {
         return (quantity != null) ? quantity : 0.0;
     }
 
-//    public void setOrders(String orderId, Product product) {
-//        orders.put(orderId, product);
-//        System.out.println(orders);
-//    }
-
-//    public void setOrders(String orderId, double quantity) {
-//        orders.put(orderId, quantity);
-//        System.out.println(orders);
-//    }
-
     public void setOrders(Order orders) {
         ordersList.add(orders);
         System.out.println(ordersList.toString());
     }
-
-//    public Product getOrderProduct(String orderId) {
-//        Product product = orders.get(orderId);
-//        return (product != null) ? product : new Product();
-//    }
 
     public double getOrderProduct(String orderId) {
         Double quantity = orders.get(orderId);
