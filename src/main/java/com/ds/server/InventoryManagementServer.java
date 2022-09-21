@@ -1,5 +1,6 @@
 package com.ds.server;
 
+import assignment.distribute.system.NameServiceClient;
 import com.ds.server.models.Order;
 import com.ds.server.models.OrderResponse;
 import com.ds.server.order.CheckOrderServiceImpl;
@@ -14,7 +15,6 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.apache.zookeeper.KeeperException;
 
-import java.io.Console;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,6 +31,8 @@ public class InventoryManagementServer {
     private Map<String, Double> products = new HashMap();
     private Map<String, Order> orders = new HashMap();
     private DistributedTx productTransaction;
+
+    public static final String NAME_SERVICE_ADDRESS = "http://localhost:2379";
 
     private DistributedTx orderTransaction;
     private SetProductQuantityServiceImpl setProductQuantityService;
@@ -67,6 +69,9 @@ public class InventoryManagementServer {
 
         InventoryManagementServer server = new InventoryManagementServer("localhost", serverPort);
         server.startServer();
+
+        NameServiceClient client = new NameServiceClient(NAME_SERVICE_ADDRESS);
+        client.registerService("CheckBalanceService", "127.0.0.1", serverPort, "tcp");
     }
 
     private void tryToBeLeader() throws KeeperException, InterruptedException {
@@ -126,11 +131,11 @@ public class InventoryManagementServer {
         return (quantity != null) ? quantity : 0.0;
     }
 
-    public OrderResponse checkAvailabilityOfProduct(String product, double requestedQuantity){
+    public OrderResponse checkAvailabilityOfProduct(String product, double requestedQuantity) {
         OrderResponse response = new OrderResponse();
         double quantity = products.get(product);
         response.setAvailableQuantity(quantity);
-        if(requestedQuantity > quantity){
+        if (requestedQuantity > quantity) {
             System.out.println("Cannot process the order due to unavailable quantity");
             response.setStatus(false);
             return response;
@@ -141,7 +146,7 @@ public class InventoryManagementServer {
 
     public OrderResponse setOrders(Order order) {
         OrderResponse response = new OrderResponse();
-        try{
+        try {
             double orderedQuantity = order.getQuantity();
             double quantity = products.get(order.getProduct());
 
@@ -152,7 +157,7 @@ public class InventoryManagementServer {
 
             response.setAvailableQuantity(quantity);
             response.setStatus(true);
-        }catch (Exception ex){
+        } catch (Exception ex) {
             System.out.println("Order failed.");
             response.setAvailableQuantity(0);
             response.setStatus(false);

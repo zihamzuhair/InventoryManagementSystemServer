@@ -39,6 +39,11 @@
             <artifactId>SynchronizationDistirutedLock</artifactId>
             <version>1</version>
         </dependency>
+        <dependency>
+            <groupId>assignment.distribute.system</groupId>
+            <artifactId>InventoryManagementNameServiceClient</artifactId>
+            <version>V1.2</version>
+        </dependency>
     </dependencies>
 
     <build>
