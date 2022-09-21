@@ -2,6 +2,7 @@ package com.ds.server.order;
 
 import com.ds.server.InventoryManagementServer;
 import com.ds.server.models.Order;
+import com.ds.server.models.OrderResponse;
 import com.ds.sycnhronization.DistributedTxCoordinator;
 import com.ds.sycnhronization.DistributedTxListener;
 import com.ds.sycnhronization.DistributedTxParticipant;
@@ -36,44 +37,53 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
         String orderId = request.getOrderId();
         String productsId =  request.getProductName();
         double quantity = request.getProductQuantity();
-        if (server.isLeader()) {
-            // Act as primary
-            try {
-                System.out.println("Updating account balance as Primary");//
-                startDistributedTx(orderId, productsId, quantity);
-                updateSecondaryServers(orderId, productsId, quantity);
-                System.out.println("going to perform");
-                if (quantity > 0) {
-                    ((DistributedTxCoordinator) server.getOrderTransaction()).perform();
-                    transactionStatus = true;
-                } else {
-                    ((DistributedTxCoordinator) server.getOrderTransaction()).sendGlobalAbort();
-                }
-            } catch (Exception e) {
-                System.out.println("Error while updating the account balance" + e.getMessage());
-                e.printStackTrace();
-            }
-        } else {
-            // Act As Secondary
-            if (request.getIsSentByPrimary()) {
-                System.out.println("Updating account balance on secondary, on Primary 's command");
-                startDistributedTx(orderId, productsId, quantity);
-                if (quantity != 0.0d) {
-                    ((DistributedTxParticipant) server.getOrderTransaction()).voteCommit();
-                    transactionStatus = true;
-                } else {
-                    ((DistributedTxParticipant) server.getOrderTransaction()).voteAbort();
+
+        //check if the requested quantity is available
+        OrderResponse availabilityResponse = server.checkAvailabilityOfProduct(productsId,quantity);
+
+        if(availabilityResponse.getStatus()){
+            if (server.isLeader()) {
+                // Act as primary
+                try {
+                    System.out.println("Updating account balance as Primary");
+                    startDistributedTx(orderId, productsId, quantity);
+                    updateSecondaryServers(orderId, productsId, quantity);
+                    System.out.println("going to perform");
+                    if (quantity > 0) {
+                        ((DistributedTxCoordinator) server.getOrderTransaction()).perform();
+                        transactionStatus = true;
+                    } else {
+                        ((DistributedTxCoordinator) server.getOrderTransaction()).sendGlobalAbort();
+                    }
+                } catch (Exception e) {
+                    System.out.println("Error while updating the account balance" + e.getMessage());
+                    e.printStackTrace();
                 }
             } else {
-                SetOrderResponse response = callPrimary(orderId, productsId, quantity);
-                if (response.getStatus()) {
-                    transactionStatus = true;
+                // Act As Secondary
+                if (request.getIsSentByPrimary()) {
+                    System.out.println("Updating account balance on secondary, on Primary 's command");
+                    startDistributedTx(orderId, productsId, quantity);
+                    if (quantity != 0.0d) {
+                        ((DistributedTxParticipant) server.getOrderTransaction()).voteCommit();
+                        transactionStatus = true;
+                    } else {
+                        ((DistributedTxParticipant) server.getOrderTransaction()).voteAbort();
+                    }
+                } else {
+                    SetOrderResponse response = callPrimary(orderId, productsId, quantity);
+                    if (response.getStatus()) {
+                        transactionStatus = true;
+                    }
                 }
             }
         }
+
+
         SetOrderResponse response = SetOrderResponse
                 .newBuilder()
                 .setStatus(transactionStatus)
+                .setRemainingQuantity(availabilityResponse.getAvailableQuantity())
                 .build();
         responseObserver.onNext(response);
         responseObserver.onCompleted();

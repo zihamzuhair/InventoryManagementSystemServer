@@ -14,6 +14,7 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.apache.zookeeper.KeeperException;
 
+import java.io.Console;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -125,26 +126,37 @@ public class InventoryManagementServer {
         return (quantity != null) ? quantity : 0.0;
     }
 
+    public OrderResponse checkAvailabilityOfProduct(String product, double requestedQuantity){
+        OrderResponse response = new OrderResponse();
+        double quantity = products.get(product);
+        response.setAvailableQuantity(quantity);
+        if(requestedQuantity > quantity){
+            System.out.println("Cannot process the order due to unavailable quantity");
+            response.setStatus(false);
+            return response;
+        }
+        response.setStatus(true);
+        return response;
+    }
+
     public OrderResponse setOrders(Order order) {
         OrderResponse response = new OrderResponse();
+        try{
+            double orderedQuantity = order.getQuantity();
+            double quantity = products.get(order.getProduct());
 
-        String orderedProduct = order.getProduct();
-        double orderedQuantity = order.getQuantity();
-        double quantity = products.get(orderedProduct);
+            quantity -= orderedQuantity;
 
-        response.setId(order.getOrderId());
-
-        if (quantity >= orderedQuantity) {
-            response.setStatus(true);
-            double qty = products.get(order.getProduct());
-            qty -= orderedQuantity;
-            response.setAvailableQuantity(qty);
-            products.put(orderedProduct, qty);
-            ordersList.add(order);
+            products.put(order.getProduct(), quantity);
             orders.put(order.getOrderId(), order);
-        } else {
+
             response.setAvailableQuantity(quantity);
+            response.setStatus(true);
+        }catch (Exception ex){
+            System.out.println("Order failed.");
+            response.setAvailableQuantity(0);
             response.setStatus(false);
+            return response;
         }
 
         return response;
