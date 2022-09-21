@@ -71,7 +71,7 @@ public class InventoryManagementServer {
         server.startServer();
 
         NameServiceClient client = new NameServiceClient(NAME_SERVICE_ADDRESS);
-        client.registerService("CheckBalanceService", "127.0.0.1", serverPort, "tcp");
+        client.registerService("InventoryManagementService", "127.0.0.1", serverPort, "tcp");
     }
 
     private void tryToBeLeader() throws KeeperException, InterruptedException {
