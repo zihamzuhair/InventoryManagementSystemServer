@@ -1,6 +1,7 @@
 package com.ds.server.models;
 
 public class OrderResponse {
+
     String Id;
     Boolean status;
 
@@ -29,9 +30,5 @@ public class OrderResponse {
     public void setAvailableQuantity(double availableQuantity) {
         AvailableQuantity = availableQuantity;
     }
-
-
-
-
 
 }

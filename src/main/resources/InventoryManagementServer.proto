@@ -2,60 +2,53 @@ syntax = "proto3";
 option java_multiple_files = true;
 package ds.inventoryManagementSystem.grpc.generated;
 
-
-
-//product quantity
-
-//check
-message CheckProductQuantityRequest {
-    string productId = 1;
+//Check item quantity
+message CheckItemQuantityRequest {
+    string itemDescription = 1;
 }
 
-message CheckProductQuantityResponse {
-    double productQuantity = 1;
+message CheckItemQuantityResponse {
+    double itemQuantity = 1;
 }
 
-service CheckProductQuantityService {
-    rpc checkProductQuantity(CheckProductQuantityRequest) returns (CheckProductQuantityResponse);
+service CheckItemQuantityService {
+    rpc checkProductQuantity(CheckItemQuantityRequest) returns (CheckItemQuantityResponse);
 }
 
-//set
-message SetProductQuantityRequest {
-    string productId = 1;
+//Set Item Quantity
+message SetItemQuantityRequest {
+    string itemDescription = 1;
     double Quantity = 2;
     bool isSentByPrimary = 3;
 }
 
-message SetProductQuantityResponse {
+message SetItemQuantityResponse {
     bool status = 1;
 }
 
-service SetProductQuantityService {
-    rpc setProductQuantity(SetProductQuantityRequest) returns (SetProductQuantityResponse);
+service SetItemQuantityService {
+    rpc setProductQuantity(SetItemQuantityRequest) returns (SetItemQuantityResponse);
 }
 
-
-//order
-
-//check
+//check order
 message CheckOrderRequest {
     string orderId = 1;
 }
 
 message CheckOrderResponse {
-    string productName = 1;
-    double productQuantity = 2;
+    string itemDescription = 1;
+    double itemQuantity = 2;
 }
 
 service CheckOrderService {
     rpc checkOrders(CheckOrderRequest) returns (CheckOrderResponse);
 }
 
-//set
+//set Order
 message SetOrderRequest {
     string orderId = 1;
-    string productName = 2;
-    double productQuantity = 3;
+    string itemDescription = 2;
+    double itemQuantity = 3;
     bool isSentByPrimary = 4;
 }
 

@@ -2,10 +2,10 @@ package com.ds.server;
 
 import com.ds.server.models.Order;
 import com.ds.server.models.OrderResponse;
-import com.ds.server.order.CheckOrderServiceImpl;
-import com.ds.server.order.SetOrderServiceImpl;
-import com.ds.server.product.CheckProductQuantityServiceImpl;
-import com.ds.server.product.SetProductQuantityServiceImpl;
+import com.ds.server.service.item.CheckItemQuantityServiceImpl;
+import com.ds.server.service.item.SetItemQuantityServiceImpl;
+import com.ds.server.service.order.CheckOrderServiceImpl;
+import com.ds.server.service.order.SetOrderServiceImpl;
 import com.ds.sycnhronization.DistributedLock;
 import com.ds.sycnhronization.DistributedTx;
 import com.ds.sycnhronization.DistributedTxCoordinator;
@@ -14,7 +14,6 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.apache.zookeeper.KeeperException;
 
-import java.io.Console;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,18 +22,17 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class InventoryManagementServer {
-    ArrayList<Order> ordersList = new ArrayList<>();
     private DistributedLock leaderLock;
     private AtomicBoolean isLeader = new AtomicBoolean(false);
     private byte[] leaderData;
     private int serverPort;
-    private Map<String, Double> products = new HashMap();
+    private Map<String, Double> items = new HashMap();
     private Map<String, Order> orders = new HashMap();
-    private DistributedTx productTransaction;
+    private DistributedTx itemTransaction;
 
     private DistributedTx orderTransaction;
-    private SetProductQuantityServiceImpl setProductQuantityService;
-    private CheckProductQuantityServiceImpl checkProductQuantityService;
+    private SetItemQuantityServiceImpl setItemQuantityService;
+    private CheckItemQuantityServiceImpl checkItemQuantityService;
     private SetOrderServiceImpl setOrderService;
     private CheckOrderServiceImpl checkOrderService;
 
@@ -42,11 +40,11 @@ public class InventoryManagementServer {
         this.serverPort = port;
         leaderLock = new DistributedLock("InventoryManagementServer", buildServerData(host, port));
 
-        setProductQuantityService = new SetProductQuantityServiceImpl(this);
-        checkProductQuantityService = new CheckProductQuantityServiceImpl(this);
+        setItemQuantityService = new SetItemQuantityServiceImpl(this);
+        checkItemQuantityService = new CheckItemQuantityServiceImpl(this);
         setOrderService = new SetOrderServiceImpl(this);
         checkOrderService = new CheckOrderServiceImpl(this);
-        productTransaction = new DistributedTxParticipant(setProductQuantityService);
+        itemTransaction = new DistributedTxParticipant(setItemQuantityService);
         orderTransaction = new DistributedTxParticipant(setOrderService);
     }
 
@@ -77,8 +75,8 @@ public class InventoryManagementServer {
     public void startServer() throws IOException, InterruptedException, KeeperException {
         Server server = ServerBuilder
                 .forPort(serverPort)
-                .addService(checkProductQuantityService)
-                .addService(setProductQuantityService)
+                .addService(checkItemQuantityService)
+                .addService(setItemQuantityService)
                 .addService(checkOrderService)
                 .addService(setOrderService)
                 .build();
@@ -89,8 +87,8 @@ public class InventoryManagementServer {
         server.awaitTermination();
     }
 
-    public DistributedTx getProductTransaction() {
-        return productTransaction;
+    public DistributedTx getItemTransaction() {
+        return itemTransaction;
     }
 
     public DistributedTx getOrderTransaction() {
@@ -109,28 +107,28 @@ public class InventoryManagementServer {
         this.leaderData = leaderData;
     }
 
-    public void setProductQuantity(String productId, double newQuantity) {
-        if (products.containsKey(productId)) {
+    public void setItemQuantity(String itemDescription, double newQuantity) {
+        if (items.containsKey(itemDescription)) {
             // return the quantity of key product
-            double quantity = products.get(productId);
+            double quantity = items.get(itemDescription);
             // update the quantity
             quantity = quantity + newQuantity;
-            products.put(productId, quantity);
+            items.put(itemDescription, quantity);
         } else {
-            products.put(productId, newQuantity);
+            items.put(itemDescription, newQuantity);
         }
     }
 
-    public double getProductQuantity(String productId) {
-        Double quantity = products.get(productId);
+    public double getItemQuantity(String item) {
+        Double quantity = items.get(item);
         return (quantity != null) ? quantity : 0.0;
     }
 
-    public OrderResponse checkAvailabilityOfProduct(String product, double requestedQuantity){
+    public OrderResponse checkAvailabilityOfProduct(String product, double requestedQuantity) {
         OrderResponse response = new OrderResponse();
-        double quantity = products.get(product);
+        double quantity = items.get(product);
         response.setAvailableQuantity(quantity);
-        if(requestedQuantity > quantity){
+        if (requestedQuantity > quantity) {
             System.out.println("Cannot process the order due to unavailable quantity");
             response.setStatus(false);
             return response;
@@ -141,18 +139,18 @@ public class InventoryManagementServer {
 
     public OrderResponse setOrders(Order order) {
         OrderResponse response = new OrderResponse();
-        try{
+        try {
             double orderedQuantity = order.getQuantity();
-            double quantity = products.get(order.getProduct());
+            double quantity = items.get(order.getItem());
 
             quantity -= orderedQuantity;
 
-            products.put(order.getProduct(), quantity);
+            items.put(order.getItem(), quantity);
             orders.put(order.getOrderId(), order);
 
             response.setAvailableQuantity(quantity);
             response.setStatus(true);
-        }catch (Exception ex){
+        } catch (Exception ex) {
             System.out.println("Order failed.");
             response.setAvailableQuantity(0);
             response.setStatus(false);
@@ -181,7 +179,7 @@ public class InventoryManagementServer {
     private void beTheLeader() {
         System.out.println("I got the leader lock. Now acting as primary");
         isLeader.set(true);
-        productTransaction = new DistributedTxCoordinator(setProductQuantityService);
+        itemTransaction = new DistributedTxCoordinator(setItemQuantityService);
         orderTransaction = new DistributedTxCoordinator(setOrderService);
     }
 

@@ -3,8 +3,7 @@ package com.ds.server.models;
 public class Order {
 
     String OrderId;
-//    Product product;
-    String product;
+    String item;
     double Quantity;
 
     public String getOrderId() {
@@ -15,12 +14,12 @@ public class Order {
         OrderId = orderId;
     }
 
-    public String getProduct() {
-        return product;
+    public String getItem() {
+        return item;
     }
 
-    public void setProduct(String product) {
-        this.product = product;
+    public void setItem(String item) {
+        this.item = item;
     }
 
     public double getQuantity() {

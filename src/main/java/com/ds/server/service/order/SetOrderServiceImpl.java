@@ -1,4 +1,4 @@
-package com.ds.server.order;
+package com.ds.server.service.order;
 
 import com.ds.server.InventoryManagementServer;
 import com.ds.server.models.Order;
@@ -6,7 +6,9 @@ import com.ds.server.models.OrderResponse;
 import com.ds.sycnhronization.DistributedTxCoordinator;
 import com.ds.sycnhronization.DistributedTxListener;
 import com.ds.sycnhronization.DistributedTxParticipant;
-import ds.inventoryManagementSystem.grpc.generated.*;
+import ds.inventoryManagementSystem.grpc.generated.SetOrderRequest;
+import ds.inventoryManagementSystem.grpc.generated.SetOrderResponse;
+import ds.inventoryManagementSystem.grpc.generated.SetOrderServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import javafx.util.Pair;
@@ -32,22 +34,22 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
 
     @Override
     public void setOrders(ds.inventoryManagementSystem.grpc.generated.SetOrderRequest request,
-                                   io.grpc.stub.StreamObserver<ds.inventoryManagementSystem.grpc.generated.SetOrderResponse> responseObserver) {
+                          io.grpc.stub.StreamObserver<ds.inventoryManagementSystem.grpc.generated.SetOrderResponse> responseObserver) {
 
         String orderId = request.getOrderId();
-        String productsId =  request.getProductName();
-        double quantity = request.getProductQuantity();
+        String itemDescription = request.getItemDescription();
+        double quantity = request.getItemQuantity();
 
         //check if the requested quantity is available
-        OrderResponse availabilityResponse = server.checkAvailabilityOfProduct(productsId,quantity);
+        OrderResponse availabilityResponse = server.checkAvailabilityOfProduct(itemDescription, quantity);
 
-        if(availabilityResponse.getStatus()){
+        if (availabilityResponse.getStatus()) {
             if (server.isLeader()) {
                 // Act as primary
                 try {
-                    System.out.println("Updating account balance as Primary");
-                    startDistributedTx(orderId, productsId, quantity);
-                    updateSecondaryServers(orderId, productsId, quantity);
+                    System.out.println("Updating item balance as Primary");
+                    startDistributedTx(orderId, itemDescription, quantity);
+                    updateSecondaryServers(orderId, itemDescription, quantity);
                     System.out.println("going to perform");
                     if (quantity > 0) {
                         ((DistributedTxCoordinator) server.getOrderTransaction()).perform();
@@ -62,8 +64,8 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
             } else {
                 // Act As Secondary
                 if (request.getIsSentByPrimary()) {
-                    System.out.println("Updating account balance on secondary, on Primary 's command");
-                    startDistributedTx(orderId, productsId, quantity);
+                    System.out.println("Updating item balance on secondary, on Primary 's command");
+                    startDistributedTx(orderId, itemDescription, quantity);
                     if (quantity != 0.0d) {
                         ((DistributedTxParticipant) server.getOrderTransaction()).voteCommit();
                         transactionStatus = true;
@@ -71,14 +73,13 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
                         ((DistributedTxParticipant) server.getOrderTransaction()).voteAbort();
                     }
                 } else {
-                    SetOrderResponse response = callPrimary(orderId, productsId, quantity);
+                    SetOrderResponse response = callPrimary(orderId, itemDescription, quantity);
                     if (response.getStatus()) {
                         transactionStatus = true;
                     }
                 }
             }
         }
-
 
         SetOrderResponse response = SetOrderResponse
                 .newBuilder()
@@ -89,12 +90,12 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
         responseObserver.onCompleted();
     }
 
-    private void startDistributedTx(String orderId, String productsId, double quantity) {
+    private void startDistributedTx(String orderId, String itemDescription, double quantity) {
         try {
-            server.getOrderTransaction().start(productsId, String.valueOf(UUID.randomUUID()));
+            server.getOrderTransaction().start(itemDescription, String.valueOf(UUID.randomUUID()));
             newOrder = new Order();
             newOrder.setOrderId(orderId);
-            newOrder.setProduct(productsId);
+            newOrder.setItem(itemDescription);
             newOrder.setQuantity(quantity);
         } catch (IOException e) {
             e.printStackTrace();
@@ -119,27 +120,27 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
         SetOrderRequest request = SetOrderRequest
                 .newBuilder()
                 .setOrderId(order.getOrderId())
-                .setProductName(order.getProduct())
-                .setProductQuantity(order.getQuantity())
+                .setItemDescription(order.getItem())
+                .setItemQuantity(order.getQuantity())
                 .setIsSentByPrimary(isSentByPrimary)
                 .build();
         SetOrderResponse response = clientStub.setOrders(request);
         return response;
     }
 
-    private SetOrderResponse callPrimary(String orderId, String productsId, double quantity) {
+    private SetOrderResponse callPrimary(String orderId, String itemDescription, double quantity) {
         System.out.println("Calling Primary server");
         String[] currentLeaderData = server.getCurrentLeaderData();
         String IPAddress = currentLeaderData[0];
         int port = Integer.parseInt(currentLeaderData[1]);
-        Order order = CreateOrderObject(orderId, productsId, quantity);
+        Order order = CreateOrderObject(orderId, itemDescription, quantity);
         return callServer(order, false, IPAddress, port);
     }
 
-    private void updateSecondaryServers(String orderId, String productsId, double quantity) throws KeeperException, InterruptedException {
+    private void updateSecondaryServers(String orderId, String itemDescription, double quantity) throws KeeperException, InterruptedException {
         System.out.println("Updating other servers");
         List<String[]> othersData = server.getOthersData();
-        Order order = CreateOrderObject(orderId, productsId,quantity);
+        Order order = CreateOrderObject(orderId, itemDescription, quantity);
         for (String[] data : othersData) {
             String IPAddress = data[0];
             int port = Integer.parseInt(data[1]);
@@ -158,12 +159,11 @@ public class SetOrderServiceImpl extends SetOrderServiceGrpc.SetOrderServiceImpl
         System.out.println("Transaction Aborted by the Coordinator");
     }
 
-    private Order CreateOrderObject(String orderId, String productId, double quantity){
+    private Order CreateOrderObject(String orderId, String productId, double quantity) {
         Order order = new Order();
         order.setOrderId(orderId);
-        order.setProduct(productId);
+        order.setItem(productId);
         order.setQuantity(quantity);
         return order;
-
     }
 }
